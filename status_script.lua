@@ -118,6 +118,7 @@ end
 local notifiedBans = {}
 
 -- Function to send Banned Notification Webhook with Discord User Tag
+-- NAMA BOT TIDAK DISENSOR PADA EMBED BANNED
 local function sendBannedNotification(botName, bot, status)
     local webhook = Webhook.new(BANNED_WEBHOOK_URL)
     webhook.content = string.format("<@%s> 🚨 **BOT TERBANNED DETECTED!**", DISCORD_USER_ID)
@@ -282,9 +283,15 @@ while true do
             offlineCount = offlineCount + 1
         end
 
+        -- SENSOR NAMA BOT DAN NAMA WORLD UNTUK EMBED STATUS STATUS VIA ||
+        local censoredBotName = "||" .. botName .. "||"
+        local censoredWorldStr = (worldStr == "N/A" or worldStr == "Lobby / Exit" or worldStr == "In World")
+            and worldStr
+            or ("||" .. worldStr .. "||")
+
         -- Add field for each bot
-        local fieldValue = string.format("• Status: **%s**\n• World: **%s**", statusStr, worldStr)
-        webhook.embed1:addField("🤖 " .. botName, fieldValue, true)
+        local fieldValue = string.format("• Status: **%s**\n• World: **%s**", statusStr, censoredWorldStr)
+        webhook.embed1:addField("🤖 " .. censoredBotName, fieldValue, true)
     end
 
     -- Summary Field
