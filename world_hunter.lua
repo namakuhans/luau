@@ -127,10 +127,15 @@ local function generateWorldName(letterCount, isReadable, withNumber)
 
     if withNumber then
         local numDigits = math.random(1, math.min(3, len))
-        for _ = 1, numDigits do
-            local randNum = tostring(math.random(0, 9))
-            local insertPos = math.random(1, #letters + 1)
-            table.insert(letters, insertPos, randNum)
+        local replaced = {}
+        local count = 0
+        while count < numDigits do
+            local pos = math.random(1, len)
+            if not replaced[pos] then
+                replaced[pos] = true
+                letters[pos] = tostring(math.random(0, 9))
+                count = count + 1
+            end
         end
     end
 
