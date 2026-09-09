@@ -198,6 +198,7 @@ local function placeTile(tileX, tileY, itemId)
         x = posX,
         y = posY
     }
+
     SendPacketRaw(false, packet)
 end
 
@@ -209,19 +210,6 @@ local function main()
     local lockedWorldCount = 0
 
     while lockedWorldCount < CONFIG.target_world_count do
-        local currentWl = getWorldLockCount()
-        if currentWl <= 0 then
-            sendWebhookNotification(
-                "⚠️ Out of World Locks!",
-                string.format("Script dihentikan karena World Lock di inventory habis! Berhasil mengunci %d dari target %d world.", lockedWorldCount, CONFIG.target_world_count),
-                16711680,
-                {
-                    { name = "🔒 Locked Worlds", value = string.format("%d / %d", lockedWorldCount, CONFIG.target_world_count), inline = true }
-                }
-            )
-            break
-        end
-
         local targetWorldName = generateWorldName(CONFIG.custom_letter, CONFIG.readable, CONFIG.with_number)
         RequestJoinWorld(targetWorldName)
         Sleep(CONFIG.delay_join_world)
@@ -229,6 +217,19 @@ local function main()
         local currentWorld = GetWorld()
         if currentWorld and currentWorld.name and currentWorld.name ~= "" then
             if not isWorldLocked() then
+                local currentWl = getWorldLockCount()
+                if currentWl <= 0 then
+                    sendWebhookNotification(
+                        "⚠️ Out of World Locks!",
+                        string.format("Script dihentikan karena World Lock di inventory habis! Berhasil mengunci %d dari target %d world.", lockedWorldCount, CONFIG.target_world_count),
+                        16711680,
+                        {
+                            { name = "🔒 Locked Worlds", value = string.format("%d / %d", lockedWorldCount, CONFIG.target_world_count), inline = true }
+                        }
+                    )
+                    break
+                end
+
                 local doorTile = findWhiteDoorTile()
                 if doorTile then
                     local doorX, doorY = getTileCoords(doorTile)
@@ -301,8 +302,4 @@ local function main()
     end
 end
 
-if type(RunThread) == "function" then
-    RunThread(main)
-else
-    main()
-end
+RunThread(main)
