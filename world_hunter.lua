@@ -151,7 +151,7 @@ local function getWorldLockCount()
     if type(GetInventory) ~= "function" then return 0 end
     local inv = GetInventory()
     if not inv then return 0 end
-    for _, item in ipairs(inv) do
+    for _, item in pairs(inv) do
         if item.id == WORLD_LOCK_ID then
             return item.amount or 0
         end
@@ -159,12 +159,18 @@ local function getWorldLockCount()
     return 0
 end
 
+local function getTileCoords(tile)
+    local x = tile.x or (tile.pos and tile.pos.x) or 0
+    local y = tile.y or (tile.pos and tile.pos.y) or 0
+    return x, y
+end
+
 local function isWorldLocked()
     if type(GetTiles) ~= "function" then return false end
     local tiles = GetTiles()
     if not tiles then return false end
 
-    for _, tile in ipairs(tiles) do
+    for _, tile in pairs(tiles) do
         if tile.locktile and tile.locktile ~= 0 then
             return true
         end
@@ -184,7 +190,7 @@ local function findWhiteDoorTile()
     local tiles = GetTiles()
     if not tiles then return nil end
 
-    for _, tile in ipairs(tiles) do
+    for _, tile in pairs(tiles) do
         if tile.fg == WHITE_DOOR_ID then
             return tile
         end
@@ -245,7 +251,9 @@ local function main()
             RequestJoinWorld(targetWorldName)
         end
 
-        Sleep(CONFIG.delay_join_world)
+        if type(Sleep) == "function" then
+            Sleep(CONFIG.delay_join_world)
+        end
 
         local currentWorld = (type(GetWorld) == "function") and GetWorld() or nil
         if not currentWorld or not currentWorld.name or currentWorld.name == "" then
@@ -262,22 +270,25 @@ local function main()
                 if not doorTile then
                     logMessage("White Door tidak ditemukan di world ini! Melewati...")
                 else
-                    local lockX = doorTile.x
-                    local lockY = doorTile.y - 1
+                    local doorX, doorY = getTileCoords(doorTile)
+                    local lockX = doorX
+                    local lockY = doorY - 1
 
                     logMessage(string.format("White door ditemukan di (%d, %d). Posisi target Lock: (%d, %d)",
-                        doorTile.x, doorTile.y, lockX, lockY))
+                        doorX, doorY, lockX, lockY))
 
                     local hasPath = true
                     if type(CheckPath) == "function" then
-                        hasPath = CheckPath(doorTile.x, doorTile.y)
+                        hasPath = CheckPath(doorX, doorY)
                     end
 
                     if hasPath then
                         if type(FindPath) == "function" then
-                            FindPath(doorTile.x, doorTile.y)
+                            FindPath(doorX, doorY)
                         end
-                        Sleep(500)
+                        if type(Sleep) == "function" then
+                            Sleep(500)
+                        end
                     else
                         logMessage("Tidak ada jalur langsung ke White Door. Mencoba mencari jalur terdekat atau break...")
                     end
@@ -294,7 +305,9 @@ local function main()
                             end
                             punchTile(lockX, lockY)
                             punchHits = punchHits + 1
-                            Sleep(CONFIG.delay_action)
+                            if type(Sleep) == "function" then
+                                Sleep(CONFIG.delay_action)
+                            end
                         end
                     end
 
@@ -307,10 +320,14 @@ local function main()
                         if type(SetItemSelected) == "function" then
                             SetItemSelected(WORLD_LOCK_ID)
                         end
-                        Sleep(200)
+                        if type(Sleep) == "function" then
+                            Sleep(200)
+                        end
 
                         placeTile(lockX, lockY, WORLD_LOCK_ID)
-                        Sleep(1000)
+                        if type(Sleep) == "function" then
+                            Sleep(1000)
+                        end
 
                         local verifyTile = (type(GetTile) == "function") and GetTile(lockX, lockY) or nil
                         if isWorldLocked() or (verifyTile and verifyTile.fg == WORLD_LOCK_ID) then
@@ -336,7 +353,9 @@ local function main()
             end
         end
 
-        Sleep(CONFIG.delay_action)
+        if type(Sleep) == "function" then
+            Sleep(CONFIG.delay_action)
+        end
     end
 
     logMessage("==============================================")
