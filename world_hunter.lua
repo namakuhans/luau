@@ -211,11 +211,17 @@ local function punchTile(tileX, tileY)
     placeTile(tileX, tileY, FIST_ID)
 end
 
+local function leaveWorld()
+    SendPacket(3, "action|quit_to_exit")
+    Sleep(2000)
+end
+
 local function main()
     local lockedWorldCount = 0
 
     while lockedWorldCount < CONFIG.target_world_count do
         local targetWorldName = generateWorldName(CONFIG.custom_letter, CONFIG.readable, CONFIG.with_number)
+        leaveWorld()
         RequestJoinWorld(targetWorldName)
         Sleep(CONFIG.delay_join_world)
 
