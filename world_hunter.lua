@@ -36,14 +36,6 @@ local LOCK_IDS = {
     [5814] = true
 }
 
-local function logMessage(msg)
-    if type(LogToConsole) == "function" then
-        LogToConsole("`9[World Hunter]`` " .. tostring(msg))
-    else
-        print("[World Hunter] " .. tostring(msg))
-    end
-end
-
 local function escapeJson(str)
     str = tostring(str or "")
     str = str:gsub('\\', '\\\\')
@@ -105,9 +97,7 @@ local function sendWebhookNotification(title, description, color, fields)
     }
 
     pcall(function()
-        if type(MakeRequest) == "function" then
-            MakeRequest(CONFIG.discord_webhook_url, "POST", headers, encodeJson(payload), 5000)
-        end
+        MakeRequest(CONFIG.discord_webhook_url, "POST", headers, encodeJson(payload), 5000)
     end)
 end
 
@@ -148,7 +138,6 @@ local function generateWorldName(letterCount, isReadable, withNumber)
 end
 
 local function getWorldLockCount()
-    if type(GetInventory) ~= "function" then return 0 end
     local inv = GetInventory()
     if not inv then return 0 end
     for _, item in pairs(inv) do
@@ -166,7 +155,6 @@ local function getTileCoords(tile)
 end
 
 local function isWorldLocked()
-    if type(GetTiles) ~= "function" then return false end
     local tiles = GetTiles()
     if not tiles then return false end
 
@@ -186,7 +174,6 @@ local function isWorldLocked()
 end
 
 local function findWhiteDoorTile()
-    if type(GetTiles) ~= "function" then return nil end
     local tiles = GetTiles()
     if not tiles then return nil end
 
@@ -199,21 +186,19 @@ local function findWhiteDoorTile()
 end
 
 local function placeTile(tileX, tileY, itemId)
-    if type(SendPacketRaw) == "function" then
-        local localPlayer = (type(GetLocal) == "function") and GetLocal() or nil
-        local posX = localPlayer and localPlayer.pos and localPlayer.pos.x or (tileX * 32)
-        local posY = localPlayer and localPlayer.pos and localPlayer.pos.y or (tileY * 32)
+    local localPlayer = GetLocal()
+    local posX = localPlayer and localPlayer.pos and localPlayer.pos.x or (tileX * 32)
+    local posY = localPlayer and localPlayer.pos and localPlayer.pos.y or (tileY * 32)
 
-        local packet = {
-            type = 3,
-            value = itemId,
-            px = tileX,
-            py = tileY,
-            x = posX,
-            y = posY
-        }
-        SendPacketRaw(false, packet)
-    end
+    local packet = {
+        type = 3,
+        value = itemId,
+        px = tileX,
+        py = tileY,
+        x = posX,
+        y = posY
+    }
+    SendPacketRaw(false, packet)
 end
 
 local function punchTile(tileX, tileY)
@@ -221,81 +206,56 @@ local function punchTile(tileX, tileY)
 end
 
 local function main()
-    logMessage("==============================================")
-    logMessage(" Starting World Hunting Script...")
-    logMessage(string.format(" Target World Count: %d", CONFIG.target_world_count))
-    logMessage(string.format(" Letter Length: %d | Readable: %s | With Number: %s",
-        CONFIG.custom_letter, tostring(CONFIG.readable), tostring(CONFIG.with_number)))
-    logMessage("==============================================")
-
     local lockedWorldCount = 0
 
     while lockedWorldCount < CONFIG.target_world_count do
         local currentWl = getWorldLockCount()
         if currentWl <= 0 then
-            local alertTitle = "⚠️ Out of World Locks!"
-            local alertMsg = string.format("Script dihentikan karena World Lock di inventory habis! Berhasil mengunci %d dari target %d world.",
-                lockedWorldCount, CONFIG.target_world_count)
-
-            logMessage("ERROR: World Lock di inventory habis! Menghentikan script...")
-            sendWebhookNotification(alertTitle, alertMsg, 16711680, {
-                { name = "🔒 Locked Worlds", value = string.format("%d / %d", lockedWorldCount, CONFIG.target_world_count), inline = true }
-            })
+            sendWebhookNotification(
+                "⚠️ Out of World Locks!",
+                string.format("Script dihentikan karena World Lock di inventory habis! Berhasil mengunci %d dari target %d world.", lockedWorldCount, CONFIG.target_world_count),
+                16711680,
+                {
+                    { name = "🔒 Locked Worlds", value = string.format("%d / %d", lockedWorldCount, CONFIG.target_world_count), inline = true }
+                }
+            )
             break
         end
 
         local targetWorldName = generateWorldName(CONFIG.custom_letter, CONFIG.readable, CONFIG.with_number)
-        logMessage(string.format("Mencoba bergabung ke world: %s ...", targetWorldName))
+        RequestJoinWorld(targetWorldName)
+        Sleep(CONFIG.delay_join_world)
 
-        if type(RequestJoinWorld) == "function" then
-            RequestJoinWorld(targetWorldName)
-        end
-
-        if type(Sleep) == "function" then
-            Sleep(CONFIG.delay_join_world)
-        end
-
-        local currentWorld = (type(GetWorld) == "function") and GetWorld() or nil
-        if not currentWorld or not currentWorld.name or currentWorld.name == "" then
-            logMessage("Gagal atau sedang memuat world, mencoba world selanjutnya...")
-        else
-            logMessage(string.format("Berhasil masuk ke world: %s", currentWorld.name))
-
-            if isWorldLocked() then
-                logMessage(string.format("World %s sudah terkunci (memiliki Lock). Melewati world ini...", currentWorld.name))
-            else
-                logMessage(string.format("🎉 World %s TIDAK MEMILIKI LOCK!", currentWorld.name))
-
+        local currentWorld = GetWorld()
+        if currentWorld and currentWorld.name and currentWorld.name ~= "" then
+            if not isWorldLocked() then
                 local doorTile = findWhiteDoorTile()
-                if not doorTile then
-                    logMessage("White Door tidak ditemukan di world ini! Melewati...")
-                else
+                if doorTile then
                     local doorX, doorY = getTileCoords(doorTile)
                     local lockX = doorX
                     local lockY = doorY - 1
 
-                    logMessage(string.format("White door ditemukan di (%d, %d). Posisi target Lock: (%d, %d)",
-                        doorX, doorY, lockX, lockY))
-
-                    local hasPath = true
-                    if type(CheckPath) == "function" then
-                        hasPath = CheckPath(doorX, doorY)
+                    if CheckPath(doorX, doorY) then
+                        FindPath(doorX, doorY)
+                        Sleep(500)
                     end
 
-                    if hasPath then
-                        if type(FindPath) == "function" then
-                            FindPath(doorX, doorY)
-                        end
-                        if type(Sleep) == "function" then
-                            Sleep(500)
-                        end
-                    else
-                        logMessage("Tidak ada jalur langsung ke White Door. Mencoba mencari jalur terdekat atau break...")
-                    end
-
-                    local targetTile = (type(GetTile) == "function") and GetTile(lockX, lockY) or nil
+                    local targetTile = GetTile(lockX, lockY)
                     if targetTile and targetTile.fg and targetTile.fg ~= 0 then
-                        logMessage(string.format("Terdapat blok (ID: %d) di atas White Door. Melakukan break...", targetTile.fg))
+                        local emptyNeighbors = {
+                            { x = lockX - 1, y = lockY },
+                            { x = lockX + 1, y = lockY },
+                            { x = lockX, y = lockY - 1 }
+                        }
+
+                        for _, neighbor in ipairs(emptyNeighbors) do
+                            local nTile = GetTile(neighbor.x, neighbor.y)
+                            if nTile and (not nTile.fg or nTile.fg == 0) and CheckPath(neighbor.x, neighbor.y) then
+                                FindPath(neighbor.x, neighbor.y)
+                                Sleep(300)
+                                break
+                            end
+                        end
 
                         local punchHits = 0
                         while punchHits < 25 do
@@ -305,35 +265,21 @@ local function main()
                             end
                             punchTile(lockX, lockY)
                             punchHits = punchHits + 1
-                            if type(Sleep) == "function" then
-                                Sleep(CONFIG.delay_action)
-                            end
+                            Sleep(CONFIG.delay_action)
                         end
                     end
 
-                    local checkLockPos = (type(GetTile) == "function") and GetTile(lockX, lockY) or nil
-                    if checkLockPos and checkLockPos.fg ~= 0 then
-                        logMessage("Gagal menghancurkan blok di atas White Door. Melewati world ini...")
-                    else
-                        logMessage("Memasang World Lock di atas White Door...")
-
-                        if type(SetItemSelected) == "function" then
-                            SetItemSelected(WORLD_LOCK_ID)
-                        end
-                        if type(Sleep) == "function" then
-                            Sleep(200)
-                        end
+                    local checkLockPos = GetTile(lockX, lockY)
+                    if not checkLockPos or checkLockPos.fg == 0 then
+                        SetItemSelected(WORLD_LOCK_ID)
+                        Sleep(200)
 
                         placeTile(lockX, lockY, WORLD_LOCK_ID)
-                        if type(Sleep) == "function" then
-                            Sleep(1000)
-                        end
+                        Sleep(1000)
 
-                        local verifyTile = (type(GetTile) == "function") and GetTile(lockX, lockY) or nil
+                        local verifyTile = GetTile(lockX, lockY)
                         if isWorldLocked() or (verifyTile and verifyTile.fg == WORLD_LOCK_ID) then
                             lockedWorldCount = lockedWorldCount + 1
-                            logMessage(string.format("✅ SUKSES! World %s berhasil dikunci! Progress: [%d/%d]",
-                                currentWorld.name, lockedWorldCount, CONFIG.target_world_count))
 
                             sendWebhookNotification(
                                 "🎉 World Berhasil Dikunci!",
@@ -345,22 +291,14 @@ local function main()
                                     { name = "💎 Sisa WL di Inventory", value = tostring(getWorldLockCount()), inline = true }
                                 }
                             )
-                        else
-                            logMessage("Pemasangan World Lock gagal atau terhalang. Melewati world ini...")
                         end
                     end
                 end
             end
         end
 
-        if type(Sleep) == "function" then
-            Sleep(CONFIG.delay_action)
-        end
+        Sleep(CONFIG.delay_action)
     end
-
-    logMessage("==============================================")
-    logMessage(string.format(" World Hunter Selesai! Total World Dikunci: %d", lockedWorldCount))
-    logMessage("==============================================")
 end
 
 if type(RunThread) == "function" then
