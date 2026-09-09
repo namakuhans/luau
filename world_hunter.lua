@@ -24,21 +24,6 @@ local FIST_ID = 18
 
 local VOWELS = {"A", "E", "I", "O", "U"}
 local CONSONANTS = {"B", "C", "D", "F", "G", "H", "J", "K", "L", "M", "N", "P", "Q", "R", "S", "T", "V", "W", "X", "Y", "Z"}
-local ALL_LETTERS = {"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"}
-
-local LOCK_IDS = {
-    [202] = true,
-    [204] = true,
-    [206] = true,
-    [242] = true,
-    [1796] = true,
-    [7188] = true,
-    [11550] = true,
-    [4994] = true,
-    [9640] = true,
-    [2408] = true,
-    [5814] = true
-}
 
 local function sendOverlayWarning(msg)
     if type(SendVariantList) == "function" then
@@ -169,7 +154,7 @@ local function generateWorldName(letterCount, isReadable, withNumber)
         end
     else
         for i = 1, len do
-            table.insert(letters, ALL_LETTERS[math.random(1, #ALL_LETTERS)])
+            table.insert(letters, CONSONANTS[math.random(1, #CONSONANTS)])
         end
     end
 
@@ -210,6 +195,20 @@ end
 local function isWorldLocked()
     local tiles = GetTiles()
     if not tiles then return false end
+
+    local LOCK_IDS = {
+        [202] = true,
+        [204] = true,
+        [206] = true,
+        [242] = true,
+        [1796] = true,
+        [7188] = true,
+        [11550] = true,
+        [4994] = true,
+        [9640] = true,
+        [2408] = true,
+        [5814] = true
+    }
 
     for _, tile in pairs(tiles) do
         if tile.locktile and tile.locktile ~= 0 then
