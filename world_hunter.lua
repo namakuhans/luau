@@ -12,7 +12,11 @@ if CONFIG.target_world_count > 20 then
     CONFIG.target_world_count = 20
 end
 
-math.randomseed(os.time())
+pcall(function()
+    if os and os.time then
+        math.randomseed(os.time())
+    end
+end)
 
 local WORLD_LOCK_ID = 242
 local WHITE_DOOR_ID = 6
@@ -35,6 +39,43 @@ local LOCK_IDS = {
     [2408] = true,
     [5814] = true
 }
+
+local function sendOverlayWarning(msg)
+    if type(SendVariantList) == "function" then
+        SendVariantList({
+            [0] = "OnTextOverlay",
+            [1] = "`4[WARNING]`` " .. msg
+        }, -1, 1000)
+    end
+end
+
+local function checkBothaxSettings()
+    local isOsEnabled = false
+    local isMakeRequestEnabled = false
+
+    pcall(function()
+        if type(os) == "table" and type(os.time) == "function" and os.time() then
+            isOsEnabled = true
+        end
+    end)
+
+    if type(MakeRequest) == "function" then
+        isMakeRequestEnabled = true
+    end
+
+    if not isOsEnabled and not isMakeRequestEnabled then
+        sendOverlayWarning("Aktifkan `wOS Library`` & `wMakeRequest`` di Setting Bothax!")
+        return false
+    elseif not isOsEnabled then
+        sendOverlayWarning("Aktifkan `wOS Library`` di Setting Bothax!")
+        return false
+    elseif not isMakeRequestEnabled then
+        sendOverlayWarning("Aktifkan `wMakeRequest`` di Setting Bothax!")
+        return false
+    end
+
+    return true
+end
 
 local function escapeJson(str)
     str = tostring(str or "")
@@ -76,6 +117,13 @@ local function sendWebhookNotification(title, description, color, fields)
         return
     end
 
+    local timestampStr = ""
+    pcall(function()
+        if os and os.date then
+            timestampStr = os.date("!%Y-%m-%dT%H:%M:%SZ")
+        end
+    end)
+
     local payload = {
         username = "Bothax World Hunter",
         embeds = {
@@ -87,7 +135,7 @@ local function sendWebhookNotification(title, description, color, fields)
                 footer = {
                     text = "Bothax World Hunter Script"
                 },
-                timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
+                timestamp = timestampStr
             }
         }
     }
@@ -217,6 +265,10 @@ local function leaveWorld()
 end
 
 local function main()
+    if not checkBothaxSettings() then
+        return
+    end
+
     local lockedWorldCount = 0
 
     while lockedWorldCount < CONFIG.target_world_count do
@@ -283,7 +335,9 @@ local function main()
 
                     local checkLockPos = GetTile(lockX, lockY)
                     if not checkLockPos or checkLockPos.fg == 0 then
-                        SetItemSelected(WORLD_LOCK_ID)
+                        if type(SetItemSelected) == "function" then
+                            SetItemSelected(WORLD_LOCK_ID)
+                        end
                         Sleep(200)
 
                         placeTile(lockX, lockY, WORLD_LOCK_ID)
